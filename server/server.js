@@ -10,6 +10,10 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Import and use API routes
+const apiRoutes = require("./routes/api");
+app.use("/api", apiRoutes);
+
 app.get("/", (req, res) => {
   res.send("Time Clock API is running...");
 });
