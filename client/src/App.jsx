@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import logoImg from "./assets/TSBLogo.png"; // Import the logo image
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
