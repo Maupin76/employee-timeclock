@@ -13,12 +13,15 @@ export default function App() {
   const [statusMessage, setStatusMessage] = useState("");
   const [currentStatus, setCurrentStatus] = useState("Out"); // 'Clocked In', 'On Lunch', 'Out'
 
-  // New Admin Log Viewer States
+  // Secure Admin Log Viewer States
   const [viewingLogs, setViewingLogs] = useState(false);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [adminUsername, setAdminUsername] = useState("");
+  const [adminPin, setAdminPin] = useState("");
   const [logs, setLogs] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
 
-  // Fetch all time logs for the report/viewer
+  // Fetch all time logs for the secure report/viewer
   const fetchLogs = async () => {
     setLoadingLogs(true);
     try {
@@ -35,7 +38,19 @@ export default function App() {
     setLoadingLogs(false);
   };
 
-  // Handle Login or Check Existing Account
+  // Handle Admin Login for Logs
+  const handleAdminAuth = (e) => {
+    e.preventDefault();
+    if (adminUsername === "Maupin76" && adminPin === "5452") {
+      setIsAdminLoggedIn(true);
+      setStatusMessage("");
+      fetchLogs();
+    } else {
+      setStatusMessage("Access Denied: Invalid Admin Credentials");
+    }
+  };
+
+  // Handle Regular User Login or Registration
   const handleAuth = async (e) => {
     e.preventDefault();
     setStatusMessage("");
@@ -121,11 +136,58 @@ export default function App() {
 
         {statusMessage && <p style={styles.message}>{statusMessage}</p>}
 
-        {viewingLogs ? (
-          /* --- TIME LOGS & PRINT REPORT VIEW --- */
+        {viewingLogs && !isAdminLoggedIn ? (
+          /* --- ADMIN CREDENTIALS PROMPT --- */
+          <form onSubmit={handleAdminAuth} style={styles.form}>
+            <h3
+              style={{
+                color: "#ffc107",
+                margin: "0 0 8px 0",
+                fontSize: "16px",
+              }}
+            >
+              Restricted Access
+            </h3>
+            <p
+              style={{ fontSize: "13px", color: "#aaa", marginBottom: "12px" }}
+            >
+              Enter Admin Credentials to View Reports
+            </p>
+            <input
+              type="text"
+              placeholder="Admin Username"
+              value={adminUsername}
+              onChange={(e) => setAdminUsername(e.target.value)}
+              required
+              style={styles.input}
+            />
+            <input
+              type="password"
+              maxLength="4"
+              placeholder="Admin PIN"
+              value={adminPin}
+              onChange={(e) => setAdminPin(e.target.value)}
+              required
+              style={styles.input}
+            />
+            <button type="submit" style={styles.primaryButton}>
+              Unlock Reports
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setViewingLogs(false);
+                setStatusMessage("");
+              }}
+              style={styles.logoutButton}
+            >
+              Cancel
+            </button>
+          </form>
+        ) : viewingLogs && isAdminLoggedIn ? (
+          /* --- SECURE TIME LOGS & PRINT REPORT VIEW --- */
           <div style={styles.dashboard}>
             <div
-              className="no-print"
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -134,7 +196,7 @@ export default function App() {
               }}
             >
               <h3 style={{ margin: 0, fontSize: "16px", color: "#ffc107" }}>
-                Time Log Report
+                Secure Time Log Report
               </h3>
               <button onClick={() => window.print()} style={styles.printButton}>
                 🖨️ Print / Save PDF
@@ -156,7 +218,10 @@ export default function App() {
             </div>
 
             <button
-              onClick={() => setViewingLogs(false)}
+              onClick={() => {
+                setViewingLogs(false);
+                setIsAdminLoggedIn(false);
+              }}
               style={styles.logoutButton}
             >
               Back to Time Clock
@@ -232,11 +297,13 @@ export default function App() {
               type="button"
               onClick={() => {
                 setViewingLogs(true);
-                fetchLogs();
+                setAdminUsername("");
+                setAdminPin("");
+                setStatusMessage("");
               }}
               style={styles.viewLogsLinkButton}
             >
-              View All Time Logs / Report
+              🔒 Admin View Time Logs / Report
             </button>
           </form>
         ) : (
