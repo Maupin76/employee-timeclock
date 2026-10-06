@@ -12,6 +12,28 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [currentStatus, setCurrentStatus] = useState("Out"); // 'Clocked In', 'On Lunch', 'Out'
+  
+  // New Admin Log Viewer States
+  const [viewingLogs, setViewingLogs] = useState(false);
+  const [logs, setLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
+  // Fetch all time logs for the report/viewer
+  const fetchLogs = async () => {
+    setLoadingLogs(true);
+    try {
+      const res = await fetch(`${API_URL}/api/timelogs`);
+      const data = await res.json();
+      if (res.ok) {
+        setLogs(data);
+      } else {
+        setStatusMessage("Failed to load logs.");
+      }
+    } catch (err) {
+      setStatusMessage("Error connecting to server for logs.");
+    }
+    setLoadingLogs(false);
+  };
 
   // Handle Login or Check Existing Account
   const handleAuth = async (e) => {
@@ -20,7 +42,6 @@ export default function App() {
 
     try {
       if (isRegistering) {
-        // Register new user
         const res = await fetch(`${API_URL}/api/users/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -32,7 +53,6 @@ export default function App() {
         setCurrentUser(data.user);
         setStatusMessage("Account created successfully!");
       } else {
-        // Login existing user
         const res = await fetch(`${API_URL}/api/users/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -41,11 +61,8 @@ export default function App() {
         const data = await res.json();
 
         if (res.status === 404) {
-          // Account doesn't exist, switch to register mode automatically
           setIsRegistering(true);
-          setStatusMessage(
-            "Account not found. Please complete details to create one.",
-          );
+          setStatusMessage("Account not found. Please complete details to create one.");
           return;
         }
         if (!res.ok) throw new Error(data.message || "Invalid username or PIN");
@@ -62,13 +79,12 @@ export default function App() {
     if (!currentUser) return;
 
     const now = new Date();
-    const dateStr = now.toLocaleDateString(); // e.g., 10/5/2026
+    const dateStr = now.toLocaleDateString(); 
     const timeStr = now.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
-    }); // e.g., 11:00 AM
+    }); 
 
-    // Format: 10/5/2026 Douglas Maupin Clock in 11:00 AM
     const formattedLog = `${dateStr} ${currentUser.firstName} ${currentUser.lastName} ${actionType} ${timeStr}`;
 
     try {
@@ -103,7 +119,42 @@ export default function App() {
 
         {statusMessage && <p style={styles.message}>{statusMessage}</p>}
 
-        {!currentUser ? (
+        {viewingLogs ? (
+          /* --- TIME LOGS & PRINT REPORT VIEW --- */
+          <div style={styles.dashboard}>
+            <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <h3 style={{ margin: 0, fontSize: "16px", color: "#ffc107" }}>Time Log Report</h3>
+              <button 
+                onClick={() => window.print()} 
+                style={styles.printButton}
+              >
+                🖨️ Print / Save PDF
+              </button>
+            </div>
+
+            <div style={styles.logContainer}>
+              {loadingLogs ? (
+                <p style={{ color: "#aaa" }}>Loading logs...</p>
+              </i> : logs.length === 0 ? (
+                <p style={{ color: "#aaa" }}>No time logs recorded yet.</p>
+              ) : (
+                logs.map((log) => (
+                  <div key={log._id} style={styles.logItem}>
+                    {log.logString}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <button
+              onClick={() => setViewingLogs(false)}
+              style={styles.logoutButton}
+            >
+              Back to Time Clock
+            </button>
+          </div>
+        ) : !currentUser ? (
+          /* --- LOGIN / REGISTER VIEW --- */
           <form onSubmit={handleAuth} style={styles.form}>
             <input
               type="text"
@@ -167,8 +218,20 @@ export default function App() {
                 ? "Already have an account? Login"
                 : "Don't have an account? Create one"}
             </p>
+
+            <button
+              type="button"
+              onClick={() => {
+                setViewingLogs(true);
+                fetchLogs();
+              }}
+              style={styles.viewLogsLinkButton}
+            >
+              View All Time Logs / Report
+            </button>
           </form>
         ) : (
+          /* --- EMPLOYEE CLOCK DASHBOARD --- */
           <div style={styles.dashboard}>
             <p style={styles.welcomeText}>
               Welcome,{" "}
@@ -264,7 +327,7 @@ const styles = {
     borderRadius: "16px",
     padding: "24px",
     width: "100%",
-    maxWidth: "400px",
+    maxWidth: "420px",
     boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
     textAlign: "center",
   },
@@ -309,7 +372,16 @@ const styles = {
     color: "#4dabf7",
     fontSize: "14px",
     cursor: "pointer",
-    marginTop: "12px",
+    marginTop: "4px",
+  },
+  viewLogsLinkButton: {
+    backgroundColor: "transparent",
+    border: "none",
+    color: "#aaa",
+    fontSize: "13px",
+    cursor: "pointer",
+    textDecoration: "underline",
+    marginTop: "8px",
   },
   message: {
     backgroundColor: "#1e1e1e",
@@ -357,6 +429,32 @@ const styles = {
     padding: "10px",
     borderRadius: "8px",
     cursor: "pointer",
-    marginTop: "20px",
+    marginTop: "10px",
+  },
+  printButton: {
+    backgroundColor: "#28a745",
+    color: "#fff",
+    border: "none",
+    padding: "6px 12px",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: "bold",
+    fontSize: "13px",
+  },
+  logContainer: {
+    textAlign: "left",
+    maxHeight: "350px",
+    overflowY: "auto",
+    backgroundColor: "#191919",
+    border: "1px solid #333",
+    borderRadius: "8px",
+    padding: "12px",
+  },
+  logItem: {
+    fontSize: "13px",
+    padding: "8px 4px",
+    borderBottom: "1px solid #282828",
+    fontFamily: "monospace",
+    color: "#ddd",
   },
 };
