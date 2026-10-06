@@ -418,8 +418,7 @@ const styles = {
     textAlign: "center",
   },
   title: {
-    fontFamily:
-      'Caveat, cursive, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily: "Caveat, cursive, sans-serif",
     fontSize: "24px",
     fontWeight: "bold",
     marginBottom: "4px",
