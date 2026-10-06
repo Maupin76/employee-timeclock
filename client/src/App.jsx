@@ -487,6 +487,13 @@ const styles = {
     fontSize: "18px",
     marginBottom: "4px",
   },
+  logoImage: {
+    width: "100%",
+    maxWidth: "200px", // Limits the maximum width so it stays neat
+    height: "auto",
+    objectFit: "contain",
+    filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.5))",
+  },
   statusText: {
     fontSize: "14px",
     color: "#aaa",
