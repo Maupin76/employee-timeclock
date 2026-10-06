@@ -134,6 +134,15 @@ export default function App() {
         <h1 style={styles.title}>Thai Street Bistro</h1>
         <p style={styles.subtitle}>Employee Time Clock</p>
 
+        {/* --- LOGO IMAGE IMPORTED FROM ASSETS --- */}
+        <div style={styles.logoContainer}>
+          <img
+            src={logoImg}
+            alt="Thai Street Bistro Logo"
+            style={styles.logoImage}
+          />
+        </div>
+
         {statusMessage && <p style={styles.message}>{statusMessage}</p>}
 
         {viewingLogs && !isAdminLoggedIn ? (
