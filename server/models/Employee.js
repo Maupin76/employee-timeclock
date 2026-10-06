@@ -8,6 +8,11 @@ const employeeSchema = new mongoose.Schema({
   lastName: { type: String, required: true, trim: true },
   email: { type: String, required: true, trim: true },
   role: { type: String, default: "Employee" },
+  employeeId: {
+    type: String,
+    default: () => `EMP-${Math.floor(100000 + Math.random() * 900000)}`,
+    sparse: true,
+  },
   createdAt: { type: Date, default: Date.now },
 });
 
