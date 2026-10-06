@@ -2,20 +2,14 @@
 const mongoose = require("mongoose");
 
 const timeLogSchema = new mongoose.Schema({
-  employeeId: {
+  userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Employee",
     required: true,
   },
-  type: {
-    type: String,
-    enum: ["IN", "OUT", "LUNCH_START", "LUNCH_END"],
-    required: true,
-  },
-  timestamp: {
-    type: Date,
-    default: Date.now,
-  },
+  logString: { type: String, required: true }, // e.g., "10/5/2026 Douglas Maupin Clock in 11:00 AM"
+  action: { type: String, required: true }, // e.g., "Clock in", "Clock out", "Go to lunch"
+  createdAt: { type: Date, default: Date.now },
 });
 
 module.exports = mongoose.model("TimeLog", timeLogSchema);
