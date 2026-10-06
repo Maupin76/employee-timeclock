@@ -12,7 +12,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [currentStatus, setCurrentStatus] = useState("Out"); // 'Clocked In', 'On Lunch', 'Out'
-  
+
   // New Admin Log Viewer States
   const [viewingLogs, setViewingLogs] = useState(false);
   const [logs, setLogs] = useState([]);
@@ -62,7 +62,9 @@ export default function App() {
 
         if (res.status === 404) {
           setIsRegistering(true);
-          setStatusMessage("Account not found. Please complete details to create one.");
+          setStatusMessage(
+            "Account not found. Please complete details to create one.",
+          );
           return;
         }
         if (!res.ok) throw new Error(data.message || "Invalid username or PIN");
@@ -79,11 +81,11 @@ export default function App() {
     if (!currentUser) return;
 
     const now = new Date();
-    const dateStr = now.toLocaleDateString(); 
+    const dateStr = now.toLocaleDateString();
     const timeStr = now.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
-    }); 
+    });
 
     const formattedLog = `${dateStr} ${currentUser.firstName} ${currentUser.lastName} ${actionType} ${timeStr}`;
 
@@ -122,12 +124,19 @@ export default function App() {
         {viewingLogs ? (
           /* --- TIME LOGS & PRINT REPORT VIEW --- */
           <div style={styles.dashboard}>
-            <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <h3 style={{ margin: 0, fontSize: "16px", color: "#ffc107" }}>Time Log Report</h3>
-              <button 
-                onClick={() => window.print()} 
-                style={styles.printButton}
-              >
+            <div
+              className="no-print"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "12px",
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: "16px", color: "#ffc107" }}>
+                Time Log Report
+              </h3>
+              <button onClick={() => window.print()} style={styles.printButton}>
                 🖨️ Print / Save PDF
               </button>
             </div>
@@ -135,7 +144,7 @@ export default function App() {
             <div style={styles.logContainer}>
               {loadingLogs ? (
                 <p style={{ color: "#aaa" }}>Loading logs...</p>
-              </i> : logs.length === 0 ? (
+              ) : logs.length === 0 ? (
                 <p style={{ color: "#aaa" }}>No time logs recorded yet.</p>
               ) : (
                 logs.map((log) => (
