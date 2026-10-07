@@ -22,6 +22,10 @@ export default function App() {
   const [logs, setLogs] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
 
+  // Edit / Update Log States
+  const [editingLogId, setEditingLogId] = useState(null);
+  const [editedLogString, setEditedLogString] = useState("");
+
   // Fetch all time logs for the secure report/viewer
   const fetchLogs = async () => {
     setLoadingLogs(true);
@@ -39,6 +43,45 @@ export default function App() {
     setLoadingLogs(false);
   };
 
+  // Automatically check and restore user status based on their last log today
+  const checkUserStatus = async (user) => {
+    try {
+      const res = await fetch(`${API_URL}/api/timelogs`);
+      const data = await res.json();
+      if (res.ok && Array.isArray(data)) {
+        const userId = user._id || user.id;
+        const userLogs = data.filter((log) => log.userId === userId);
+
+        if (userLogs.length > 0) {
+          const latestLog = userLogs[userLogs.length - 1];
+          const nowStr = new Date().toLocaleDateString();
+          const logDateStr = latestLog.logString.split(" ")[0];
+
+          // If the last log was today, restore their exact state
+          if (logDateStr === nowStr) {
+            if (
+              latestLog.action === "Clock in" ||
+              latestLog.action === "Back from lunch"
+            ) {
+              setCurrentStatus("Clocked In");
+            } else if (latestLog.action === "Go to lunch") {
+              setCurrentStatus("On Lunch");
+            } else if (latestLog.action === "Clock out") {
+              setCurrentStatus("Out");
+            }
+          } else {
+            // New day (e.g. missed clock out yesterday), default to Out for a fresh clock-in
+            setCurrentStatus("Out");
+          }
+        } else {
+          setCurrentStatus("Out");
+        }
+      }
+    } catch (err) {
+      setCurrentStatus("Out");
+    }
+  };
+
   // Handle Admin Login for Logs
   const handleAdminAuth = (e) => {
     e.preventDefault();
@@ -48,6 +91,43 @@ export default function App() {
       fetchLogs();
     } else {
       setStatusMessage("Access Denied: Invalid Admin Credentials");
+    }
+  };
+
+  // Handle Delete Log Entry
+  const handleDeleteLog = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this log entry?"))
+      return;
+    try {
+      const res = await fetch(`${API_URL}/api/timelogs/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setLogs(logs.filter((log) => (log._id || log.id) !== id));
+      } else {
+        alert("Failed to delete log entry.");
+      }
+    } catch (err) {
+      alert("Error connecting to server to delete log.");
+    }
+  };
+
+  // Handle Update / Save Log Entry
+  const handleUpdateLog = async (id) => {
+    try {
+      const res = await fetch(`${API_URL}/api/timelogs/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logString: editedLogString }),
+      });
+      if (res.ok) {
+        setEditingLogId(null);
+        fetchLogs();
+      } else {
+        alert("Failed to update log entry.");
+      }
+    } catch (err) {
+      alert("Error connecting to server to update log.");
     }
   };
 
@@ -67,6 +147,7 @@ export default function App() {
         if (!res.ok) throw new Error(data.message || "Registration failed");
 
         setCurrentUser(data.user);
+        setCurrentStatus("Out");
         setStatusMessage("Account created successfully!");
       } else {
         const res = await fetch(`${API_URL}/api/users/login`, {
@@ -86,6 +167,7 @@ export default function App() {
         if (!res.ok) throw new Error(data.message || "Invalid username or PIN");
 
         setCurrentUser(data.user);
+        await checkUserStatus(data.user); // Automatically check and restore current status
       }
     } catch (err) {
       setStatusMessage(err.message);
@@ -195,7 +277,7 @@ export default function App() {
             </button>
           </form>
         ) : viewingLogs && isAdminLoggedIn ? (
-          /* --- SECURE TIME LOGS & PRINT REPORT VIEW --- */
+          /* --- SPREADSHEET TIME LOGS & PRINT REPORT VIEW --- */
           <div style={styles.dashboard}>
             <div
               style={{
@@ -206,24 +288,104 @@ export default function App() {
               }}
             >
               <h3 style={{ margin: 0, fontSize: "16px", color: "#ffc107" }}>
-                Secure Time Log Report
+                Timesheet Spreadsheet
               </h3>
               <button onClick={() => window.print()} style={styles.printButton}>
                 🖨️ Print / Save PDF
               </button>
             </div>
 
-            <div style={styles.logContainer}>
+            <div style={styles.tableContainer}>
               {loadingLogs ? (
-                <p style={{ color: "#aaa" }}>Loading logs...</p>
+                <p style={{ color: "#aaa", padding: "10px" }}>
+                  Loading spreadsheet logs...
+                </p>
               ) : logs.length === 0 ? (
-                <p style={{ color: "#aaa" }}>No time logs recorded yet.</p>
+                <p style={{ color: "#aaa", padding: "10px" }}>
+                  No time logs recorded yet.
+                </p>
               ) : (
-                logs.map((log) => (
-                  <div key={log._id} style={styles.logItem}>
-                    {log.logString}
-                  </div>
-                ))
+                <table style={styles.table}>
+                  <thead>
+                    <tr style={styles.tableHeaderRow}>
+                      <th style={styles.th}>Log Details / Spreadsheet Entry</th>
+                      <th style={{ ...styles.th, textAlign: "right" }}>
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logs.map((log) => {
+                      const logId = log._id || log.id;
+                      const isEditing = editingLogId === logId;
+
+                      return (
+                        <tr key={logId} style={styles.tableRow}>
+                          <td style={styles.td}>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={editedLogString}
+                                onChange={(e) =>
+                                  setEditedLogString(e.target.value)
+                                }
+                                style={styles.editInput}
+                              />
+                            ) : (
+                              <span style={styles.logText}>
+                                {log.logString}
+                              </span>
+                            )}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.td,
+                              textAlign: "right",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {isEditing ? (
+                              <>
+                                <button
+                                  onClick={() => handleUpdateLog(logId)}
+                                  style={styles.saveBtn}
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={() => setEditingLogId(null)}
+                                  style={styles.cancelBtn}
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setEditingLogId(logId);
+                                    setEditedLogString(log.logString);
+                                  }}
+                                  style={styles.editBtn}
+                                  title="Edit Entry"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteLog(logId)}
+                                  style={styles.deleteBtn}
+                                  title="Delete Entry"
+                                >
+                                  🗑️
+                                </button>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               )}
             </div>
 
@@ -413,7 +575,7 @@ const styles = {
     borderRadius: "16px",
     padding: "24px",
     width: "100%",
-    maxWidth: "420px",
+    maxWidth: "480px",
     boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
     textAlign: "center",
   },
@@ -427,7 +589,7 @@ const styles = {
   subtitle: {
     fontSize: "14px",
     color: "#aaa",
-    marginBottom: "24px",
+    marginBottom: "16px",
   },
   form: {
     display: "flex",
@@ -488,9 +650,15 @@ const styles = {
     fontSize: "18px",
     marginBottom: "4px",
   },
+  logoContainer: {
+    marginBottom: "20px",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   logoImage: {
     width: "100%",
-    maxWidth: "200px", // Limits the maximum width so it stays neat
+    maxWidth: "200px",
     height: "auto",
     objectFit: "contain",
     filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.5))",
@@ -535,20 +703,78 @@ const styles = {
     fontWeight: "bold",
     fontSize: "13px",
   },
-  logContainer: {
+  tableContainer: {
     textAlign: "left",
-    maxHeight: "350px",
+    maxHeight: "380px",
     overflowY: "auto",
     backgroundColor: "#191919",
     border: "1px solid #333",
     borderRadius: "8px",
-    padding: "12px",
   },
-  logItem: {
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
     fontSize: "13px",
-    padding: "8px 4px",
+  },
+  tableHeaderRow: {
+    backgroundColor: "#222",
+    borderBottom: "2px solid #444",
+  },
+  th: {
+    padding: "10px",
+    color: "#ffc107",
+    fontWeight: "bold",
+  },
+  tableRow: {
     borderBottom: "1px solid #282828",
-    fontFamily: "monospace",
+  },
+  td: {
+    padding: "8px 10px",
     color: "#ddd",
+  },
+  logText: {
+    fontFamily: "monospace",
+  },
+  editInput: {
+    width: "100%",
+    padding: "4px 6px",
+    backgroundColor: "#111",
+    border: "1px solid #ffc107",
+    color: "#fff",
+    borderRadius: "4px",
+    fontSize: "12px",
+  },
+  editBtn: {
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    fontSize: "14px",
+    marginRight: "4px",
+  },
+  deleteBtn: {
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    fontSize: "14px",
+  },
+  saveBtn: {
+    backgroundColor: "#28a745",
+    color: "#fff",
+    border: "none",
+    padding: "4px 8px",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: "11px",
+    fontWeight: "bold",
+    marginRight: "4px",
+  },
+  cancelBtn: {
+    backgroundColor: "#6c757d",
+    color: "#fff",
+    border: "none",
+    padding: "4px 8px",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: "11px",
   },
 };
