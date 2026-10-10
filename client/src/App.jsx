@@ -105,7 +105,10 @@ export default function App() {
       if (res.ok) {
         setLogs(logs.filter((log) => (log._id || log.id) !== id));
       } else {
-        alert("Failed to delete log entry.");
+        const errorData = await res.json().catch(() => ({}));
+        alert(
+          `Failed to delete log entry: ${errorData.message || res.statusText}`,
+        );
       }
     } catch (err) {
       alert("Error connecting to server to delete log.");
@@ -124,7 +127,10 @@ export default function App() {
         setEditingLogId(null);
         fetchLogs();
       } else {
-        alert("Failed to update log entry.");
+        const errorData = await res.json().catch(() => ({}));
+        alert(
+          `Failed to update log entry: ${errorData.message || res.statusText}`,
+        );
       }
     } catch (err) {
       alert("Error connecting to server to update log.");
@@ -211,6 +217,16 @@ export default function App() {
     }
   };
 
+  // Group logs by Employee Name parsed from logString
+  const groupedLogs = logs.reduce((acc, log) => {
+    const parts = log.logString ? log.logString.split(" ") : [];
+    const empName =
+      parts.length >= 3 ? `${parts[1]} ${parts[2]}` : "Other / Unassigned";
+    if (!acc[empName]) acc[empName] = [];
+    acc[empName].push(log);
+    return acc;
+  }, {});
+
   return (
     <div style={styles.container}>
       <div style={styles.card}>
@@ -277,7 +293,7 @@ export default function App() {
             </button>
           </form>
         ) : viewingLogs && isAdminLoggedIn ? (
-          /* --- SPREADSHEET TIME LOGS & PRINT REPORT VIEW --- */
+          /* --- GROUPED EMPLOYEE TIMESHEET REPORT & PRINT VIEW --- */
           <div style={styles.dashboard}>
             <div
               style={{
@@ -288,7 +304,7 @@ export default function App() {
               }}
             >
               <h3 style={{ margin: 0, fontSize: "16px", color: "#ffc107" }}>
-                Timesheet Spreadsheet
+                Employee Timesheets Report
               </h3>
               <button onClick={() => window.print()} style={styles.printButton}>
                 🖨️ Print / Save PDF
@@ -298,94 +314,91 @@ export default function App() {
             <div style={styles.tableContainer}>
               {loadingLogs ? (
                 <p style={{ color: "#aaa", padding: "10px" }}>
-                  Loading spreadsheet logs...
+                  Loading logs...
                 </p>
-              ) : logs.length === 0 ? (
+              ) : Object.keys(groupedLogs).length === 0 ? (
                 <p style={{ color: "#aaa", padding: "10px" }}>
                   No time logs recorded yet.
                 </p>
               ) : (
-                <table style={styles.table}>
-                  <thead>
-                    <tr style={styles.tableHeaderRow}>
-                      <th style={styles.th}>Log Details / Spreadsheet Entry</th>
-                      <th style={{ ...styles.th, textAlign: "right" }}>
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {logs.map((log) => {
-                      const logId = log._id || log.id;
-                      const isEditing = editingLogId === logId;
+                Object.keys(groupedLogs).map((empName) => (
+                  <div key={empName} style={{ marginBottom: "16px" }}>
+                    <div style={styles.employeeHeader}>{empName}</div>
+                    <table style={styles.table}>
+                      <tbody>
+                        {groupedLogs[empName].map((log) => {
+                          const logId = log._id || log.id;
+                          const isEditing = editingLogId === logId;
 
-                      return (
-                        <tr key={logId} style={styles.tableRow}>
-                          <td style={styles.td}>
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={editedLogString}
-                                onChange={(e) =>
-                                  setEditedLogString(e.target.value)
-                                }
-                                style={styles.editInput}
-                              />
-                            ) : (
-                              <span style={styles.logText}>
-                                {log.logString}
-                              </span>
-                            )}
-                          </td>
-                          <td
-                            style={{
-                              ...styles.td,
-                              textAlign: "right",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {isEditing ? (
-                              <>
-                                <button
-                                  onClick={() => handleUpdateLog(logId)}
-                                  style={styles.saveBtn}
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={() => setEditingLogId(null)}
-                                  style={styles.cancelBtn}
-                                >
-                                  Cancel
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    setEditingLogId(logId);
-                                    setEditedLogString(log.logString);
-                                  }}
-                                  style={styles.editBtn}
-                                  title="Edit Entry"
-                                >
-                                  ✏️
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteLog(logId)}
-                                  style={styles.deleteBtn}
-                                  title="Delete Entry"
-                                >
-                                  🗑️
-                                </button>
-                              </>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          return (
+                            <tr key={logId} style={styles.tableRow}>
+                              <td style={styles.td}>
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    value={editedLogString}
+                                    onChange={(e) =>
+                                      setEditedLogString(e.target.value)
+                                    }
+                                    style={styles.editInput}
+                                  />
+                                ) : (
+                                  <span style={styles.logText}>
+                                    {log.logString}
+                                  </span>
+                                )}
+                              </td>
+                              <td
+                                style={{
+                                  ...styles.td,
+                                  textAlign: "right",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {isEditing ? (
+                                  <>
+                                    <button
+                                      onClick={() => handleUpdateLog(logId)}
+                                      style={styles.saveBtn}
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingLogId(null)}
+                                      style={styles.cancelBtn}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setEditingLogId(logId);
+                                        setEditedLogString(log.logString);
+                                      }}
+                                      style={styles.editBtn}
+                                      title="Edit Entry"
+                                    >
+                                      ✏️
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteLog(logId)}
+                                      style={styles.deleteBtn}
+                                      title="Delete Entry"
+                                    >
+                                      🗑️
+                                    </button>
+                                  </>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ))
               )}
             </div>
 
@@ -710,20 +723,23 @@ const styles = {
     backgroundColor: "#191919",
     border: "1px solid #333",
     borderRadius: "8px",
+    padding: "8px",
+  },
+  employeeHeader: {
+    backgroundColor: "#252525",
+    color: "#ffc107",
+    padding: "8px 12px",
+    fontWeight: "bold",
+    fontSize: "14px",
+    borderTopLeftRadius: "6px",
+    borderTopRightRadius: "6px",
+    borderBottom: "1px solid #333",
   },
   table: {
     width: "100%",
     borderCollapse: "collapse",
     fontSize: "13px",
-  },
-  tableHeaderRow: {
-    backgroundColor: "#222",
-    borderBottom: "2px solid #444",
-  },
-  th: {
-    padding: "10px",
-    color: "#ffc107",
-    fontWeight: "bold",
+    marginBottom: "8px",
   },
   tableRow: {
     borderBottom: "1px solid #282828",
