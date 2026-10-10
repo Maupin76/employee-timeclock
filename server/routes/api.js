@@ -103,4 +103,37 @@ router.get("/timelogs", async (req, res) => {
   }
 });
 
+// 6. Update a time log entry by ID
+router.put("/timelogs/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { logString } = req.body;
+    const updatedLog = await TimeLog.findByIdAndUpdate(
+      id,
+      { logString },
+      { new: true },
+    );
+    if (!updatedLog) {
+      return res.status(404).json({ message: "Time log not found" });
+    }
+    res.json(updatedLog);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 7. Delete a time log entry by ID
+router.delete("/timelogs/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedLog = await TimeLog.findByIdAndDelete(id);
+    if (!deletedLog) {
+      return res.status(404).json({ message: "Time log not found" });
+    }
+    res.json({ message: "Time log deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;
